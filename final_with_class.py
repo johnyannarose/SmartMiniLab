@@ -9,8 +9,7 @@ import scipy.signal
 import csv
 from collections import Counter
 from pathlib import Path
-
-os.chdir(r"C:\Users\JOHNYA\Desktop\python_files\dictionary_values")
+import plotly.figure_factory as ff
 
 
 def normalization(image, image_black, image_white):
@@ -39,10 +38,10 @@ def normalization(image, image_black, image_white):
     return image_normed
 
 
-class CircleDetection():
+class CircleDetection:
 
     def __init__(self, image_source, white_source, black_source):
-
+            
         self.list_folder_messtag = image_source
         self.list_folder_messtag_weiss = white_source
         self.list_folder_messtag_schwarz = black_source
@@ -56,9 +55,19 @@ class CircleDetection():
         self.minRadius = 60
         self.maxRadius = 80
         self.compute_radius = 20
-    
+        
     def find_circle_otsu(self, image_normed):
-
+        
+        # **************************************************
+        # Algorithm
+        # 1. Gaussian Blur
+        # 2. Erosion
+        # 3. Otsu thresholding
+        # 4. Morphological closing
+        # 5. Canny edge detection
+        # 6. Connected components
+        # 7. Circle detection
+        
         # **************************************************
         # Applying thresholds
         # th1 - binary threshold with otsu, th2 inverse binary with otsu
@@ -76,7 +85,8 @@ class CircleDetection():
 
         closingSize = 4
         kernel = cv2.getStructuringElement(
-            cv2.MORPH_ELLIPSE, (2*closingSize + 1, 2*closingSize + 1), (closingSize, closingSize))
+            cv2.MORPH_ELLIPSE, (2*closingSize + 1, 2*closingSize + 1), 
+            (closingSize, closingSize))
         th1 = cv2.morphologyEx(th1, cv2.MORPH_CLOSE, kernel, iterations=8)
         th1 = cv2.Canny(th1, 200, 250)
 
@@ -140,23 +150,23 @@ class CircleDetection():
                 mask = None
         else:
             th1 = cv2.cvtColor(th1, cv2.COLOR_GRAY2BGR)
-            # th2 = cv2.cvtColor(th2, cv2.COLOR_GRAY2BGR)
+            th2 = cv2.cvtColor(th2, cv2.COLOR_GRAY2BGR)
             image_normed = cv2.cvtColor(image_normed, cv2.COLOR_GRAY2BGR)
 
             circle_feature = th1.shape[0]//2, th1.shape[1]//2, 0.0
             # yellow color = (0,255,255)
             cv2.circle(th1, (th2.shape[0]//2, th1.shape[1]//2),
-                       self.compute_radius, color=(0, 255, 255), thickness=2)
+                        self.compute_radius, color=(0, 255, 255), thickness=2)
             mask = None
             
         cv2.imshow('Image, Thresholded image',
-                   np.hstack((image_normed, th1)))
-        # cv2.imwrite(r'C:\Users\JOHNYA\Desktop\python_files\results\final\Image_Thresholdedimage.png', np.hstack(
+                    np.hstack((image_normed, th1)))
+        # # cv2.imwrite(r'C:\Users\JOHNYA\Desktop\python_files\results\final\Image_Thresholdedimage.png', np.hstack(
         #     (image_normed, th1)))
         cv2.waitKey(1)
 
         signal = cv2.mean(image_normed[:,:,2], mask = mask)[0]
-
+        
         return circle_feature, self.minRadius, self.maxRadius, signal
 
 
@@ -171,17 +181,20 @@ class CircleDetection():
             R coordinate, Minimum Radius, Maximum Radius
 
         '''
+      
         # list_folder_messtag = self.list_folder_messtag
-        for path_avi in self.list_folder_messtag:
+        for path_avi in [self.list_folder_messtag]:
+       
+            device_no =  path_avi.split('temp')[-1].split('_')[4]
+            date = path_avi.split('temp')[-1].split('_')[3]
+            replicate = path_avi.split('temp')[-1].split('_')[6]
+            filename = path_avi.split('temp')[-1]
             
-            device_no = path_avi.split('\\')[-2].split('_')[-1]
-            date = path_avi.split('_')[-5]
-            replicate = path_avi.split('_')[-2][0]
-            filename = path_avi.split('\\')[-1]
             x = []
             y = []
             r = []
             s = []
+            
             # Read image
             cap = cv2.VideoCapture(path_avi)
             
@@ -190,11 +203,13 @@ class CircleDetection():
             # starting with second image
             success, image = cap.read()
             success, image = cap.read()
-            for white in self.list_folder_messtag_weiss:
+            for white in [self.list_folder_messtag_weiss]:
+            
                 cap_white = cv2.VideoCapture(path_avi)
                 success, image_white = cap_white.read()
 
-            for black in self.list_folder_messtag_schwarz:
+            for black in [self.list_folder_messtag_schwarz]:
+           
                 cap_black = cv2.VideoCapture(black)
                 success, image_black = cap_black.read()
 
@@ -202,7 +217,7 @@ class CircleDetection():
 
             height = image.shape[1]
             width = image.shape[0]
-
+            
             while success:
                 image_normed = normalization(
                     image[:, :, 2], image_black[:, :, 2], image_white[:, :, 2])
@@ -217,7 +232,8 @@ class CircleDetection():
                 y.append(y_temp)
                 r.append(r_temp)
                 s.append(s_temp)
-
+                
+            
                 success, image = cap.read()
                 count += 1
                 cv2.waitKey(1)
@@ -227,9 +243,9 @@ class CircleDetection():
             
             # Frames per second. We are taking frames from 2nd frame.
             t = [i for i in range(0, len(r))]
-
+            
             dict_values = {
-                'Device': [path_avi.split('\\')[-2].split('_')[-1]],
+                'Device': [path_avi.split('temp')[-1].split('_')[4]],
                 'Date': [path_avi.split('_')[-5]],
                 'Filename': [path_avi.split('\\')[-1]],
                 'Replicate': [path_avi.split('_')[-2][0]],
@@ -243,33 +259,33 @@ class CircleDetection():
                 'Maximum Radius': max_radius
             }
 
-            dict_filename = str('Date_' + date + '_Device_' +
-                                device_no + '_Replicate_' + replicate + '_6')
+            # dict_filename = str('Date_' + date + '_Device_' +
+            #                     device_no + '_Replicate_' + replicate + '_6')
             
-            # ***************************************************************
-            csv_file = r'C:\Users\JOHNYA\Desktop\python_files\dictionary_values\{}.csv'.format(
-                dict_filename)
-            # w = csv.writer(open(csv_file, "w"))
-            # loop over dictionary keys and values
-            # for key, val in dict_values.items():
-            #     # write every key and value to file
-            #     w.writerow([key, val])
+            # # ***************************************************************
+            # csv_file = r'C:\Users\JOHNYA\Desktop\python_files\dictionary_values\{}.csv'.format(
+            #     dict_filename)
+            # # w = csv.writer(open(csv_file, "w"))
+            # # loop over dictionary keys and values
+            # # for key, val in dict_values.items():
+            # #     # write every key and value to file
+            # #     w.writerow([key, val])
             
-            # ***************************************************************
-            xlsx_file = r'C:\Users\JOHNYA\Desktop\python_files\dictionary_values\{}.xlsx'.format(
-                dict_filename)
+            # # ***************************************************************
+            # xlsx_file = r'C:\Users\JOHNYA\Desktop\python_files\dictionary_values\{}.xlsx'.format(
+            #     dict_filename)
            
-            # Creating dataframe to store dictionary values
-            df = pd.DataFrame(dict_values, columns = ['Time','X coordinate', 'Y coordinate', 'R coordinate', 'Signal', 'Slope'])
-            df['Filename'] = str('Date_' + date + '_Device_' +
-                                device_no + '_Replicate_' + replicate + '_6')
-            df = df.set_index('Filename', append=True).unstack('Filename')
+            # # Creating dataframe to store dictionary values
+            # df = pd.DataFrame(dict_values, columns = ['Time','X coordinate', 'Y coordinate', 'R coordinate', 'Signal', 'Slope'])
+            # df['Filename'] = str('Date_' + date + '_Device_' +
+            #                     device_no + '_Replicate_' + replicate + '_6')
+            # df = df.set_index('Filename', append=True).unstack('Filename')
 
-            # creating excel writer object
-            writer = pd.ExcelWriter(xlsx_file)
-            df.to_excel(writer)
-            # save the excel
-            writer.save()
+            # # creating excel writer object
+            # writer = pd.ExcelWriter(xlsx_file)
+            # df.to_excel(writer)
+            # # save the excel
+            # writer.save()
             # ***************************************************************
             cap.release()
             cv2.destroyAllWindows()
@@ -313,7 +329,7 @@ class CircleDetection():
             plt.plot(t[1:],slope[1:])
             plt.xlabel('Frames')
             plt.ylabel('Slope')
-            plt.savefig(r'C:\Users\JOHNYA\Desktop\python_files\results\plots\Date {}, Device_number {}, Replicate {}_6, Signal, Slope'.format(date,device_no,replicate))
+            # plt.savefig(r'C:\Users\JOHNYA\Desktop\python_files\results\plots\Date {}, Device_number {}, Replicate {}_6, Signal, Slope'.format(date,device_no,replicate))
             plt.show()    
               
             # using subplot function and creating
@@ -453,4 +469,4 @@ if __name__ == '__main__':
 
     circle_detection = CircleDetection(
         list_folder_messtag, list_folder_messtag_weiss, list_folder_messtag_schwarz)
-    circle_detection.plots()
+    circle_detection.convert_video_to_images()
